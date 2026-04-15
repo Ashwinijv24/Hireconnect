@@ -1,12 +1,7 @@
 from django.urls import path
-from . import views, api_views, employer_views
+from . import api_views, employer_views
 app_name = 'jobs'
 urlpatterns = [
-    # Template views
-    path('', views.home, name='home'),
-    path('jobs/', views.job_list, name='job_list'),
-    path('jobs/<int:pk>/', views.job_detail, name='job_detail'),
-    
     # Public API endpoints
     path('api/jobs/', api_views.JobListAPIView.as_view(), name='api_job_list'),
     path('api/jobs/<int:pk>/', api_views.JobDetailAPIView.as_view(), name='api_job_detail'),
