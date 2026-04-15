@@ -1,9 +1,11 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.authtoken.models import Token
 from django.shortcuts import get_object_or_404
-from .models import UserProfile, Education, Experience, Certification
+from django.contrib.auth import authenticate
+from .models import UserProfile, Education, Experience, Certification, User
 from .serializers import (
     UserProfileSerializer, EducationSerializer, 
     ExperienceSerializer, CertificationSerializer
@@ -80,3 +82,129 @@ class CertificationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         profile, created = UserProfile.objects.get_or_create(user=self.request.user)
         serializer.save(profile=profile)
+
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register(request):
+    """Register a new user"""
+    username = request.data.get('username')
+    email = request.data.get('email')
+    password = request.data.get('password')
+    is_employer = request.data.get('is_employer', False)
+    
+    if not username or not email or not password:
+        return Response(
+            {'error': 'Username, email, and password are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if User.objects.filter(username=username).exists():
+        return Response(
+            {'error': 'Username already exists'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if User.objects.filter(email=email).exists():
+        return Response(
+            {'error': 'Email already exists'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    user = User.objects.create_user(
+        username=username,
+        email=email,
+        password=password,
+        is_employer=is_employer,
+        is_candidate=not is_employer
+    )
+    
+    # Create profile
+    UserProfile.objects.get_or_create(user=user)
+    
+    # Get or create token
+    token, created = Token.objects.get_or_create(user=user)
+    
+    return Response({
+        'token': token.key,
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'is_employer': user.is_employer,
+            'is_candidate': user.is_candidate
+        }
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login(request):
+    """Login user"""
+    username = request.data.get('username')
+    password = request.data.get('password')
+    
+    if not username or not password:
+        return Response(
+            {'error': 'Username and password are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    user = authenticate(username=username, password=password)
+    
+    if not user:
+        return Response(
+            {'error': 'Invalid credentials'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+    
+    token, created = Token.objects.get_or_create(user=user)
+    
+    return Response({
+        'token': token.key,
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'is_employer': user.is_employer,
+            'is_candidate': user.is_candidate
+        }
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout(request):
+    """Logout user"""
+    request.user.auth_token.delete()
+    return Response({'message': 'Logged out successfully'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def current_user(request):
+    """Get current user info"""
+    user = request.user
+    profile = UserProfile.objects.filter(user=user).first()
+    
+    return Response({
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'is_employer': user.is_employer,
+            'is_candidate': user.is_candidate
+        },
+        'profile': UserProfileSerializer(profile).data if profile else None
+    })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_check(request):
+    """Health check endpoint"""
+    return Response({
+        'status': 'ok',
+        'message': 'Backend is running'
+    })

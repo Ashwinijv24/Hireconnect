@@ -21,4 +21,9 @@ urlpatterns = [
     # API endpoints
     path('api/', include(router.urls)),
     path('api/admin/dashboard/', admin_views.AdminDashboardAPIView.as_view(), name='api_admin_dashboard'),
+    path('api/register/', api_views.register, name='api_register'),
+    path('api/login/', api_views.login, name='api_login'),
+    path('api/logout/', api_views.logout, name='api_logout'),
+    path('api/current-user/', api_views.current_user, name='api_current_user'),
+    path('api/health/', api_views.health_check, name='api_health'),
 ]

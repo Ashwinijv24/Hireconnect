@@ -37,6 +37,7 @@ class UserProfile(models.Model):
     linkedin_url = models.URLField(blank=True)
     github_url = models.URLField(blank=True)
     portfolio_url = models.URLField(blank=True)
+    resume_url = models.URLField(blank=True, help_text="URL to resume file")
     
     # Preferences
     expected_salary = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
